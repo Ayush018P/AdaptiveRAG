@@ -1,0 +1,2 @@
+class AdaptiveRAGException(Exception):
+    pass

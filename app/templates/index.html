@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h1>AdaptiveRAG</h1>
+    <p class="page-description">Closed-Loop Retrieval Optimization Research Prototype</p>
+</div>
+
+<div class="grid-2 gap-2 mb-2">
+    <div class="panel" style="margin-bottom: 0;">
+        <h3 class="workflow-title" style="margin-top: 0;">Knowledge Base</h3>
+        <table class="table" style="font-size: 13px;">
+            <tr><td>Documents</td><td>{{ stats.documents }}</td></tr>
+            <tr><td>Chunks</td><td>{{ stats.chunks }}</td></tr>
+            <tr><td>Embedding Model</td><td>all-MiniLM-L6-v2</td></tr>
+        </table>
+    </div>
+
+    <div class="panel" style="margin-bottom: 0;">
+        <h3 class="workflow-title" style="margin-top: 0;">Current Retrieval Configuration</h3>
+        <table class="table" style="font-size: 13px;">
+            <tr><td>Dense Weight</td><td>{{ "%.2f"|format(settings.dense_weight) }}</td></tr>
+            <tr><td>BM25 Weight</td><td>{{ "%.2f"|format(settings.bm25_weight) }}</td></tr>
+            <tr><td>Top-K</td><td>{{ settings.top_k }}</td></tr>
+            <tr><td>Method</td><td>Hybrid (FAISS + BM25)</td></tr>
+        </table>
+    </div>
+</div>
+
+<div class="grid-2 gap-2 mb-2">
+    <div class="panel" style="margin-bottom: 0;">
+        <h3 class="workflow-title" style="margin-top: 0;">Adaptation Engine</h3>
+        <table class="table" style="font-size: 13px;">
+            <tr><td>Queries Evaluated</td><td>{{ stats.queries_evaluated }}</td></tr>
+            <tr><td>Experiments Run</td><td>{{ stats.experiments }}</td></tr>
+            <tr><td style="color: var(--success);">Accepted Configurations</td><td style="color: var(--success); font-weight: bold;">{{ stats.accepted }}</td></tr>
+            <tr><td style="color: var(--danger);">Rejected Configurations</td><td style="color: var(--danger);">{{ stats.rejected }}</td></tr>
+            <tr><td style="color: var(--secondary-text);">No Action Required/Possible</td><td style="color: var(--secondary-text);">{{ stats.no_action }}</td></tr>
+        </table>
+    </div>
+
+    <div class="panel" style="margin-bottom: 0;">
+        <h3 class="workflow-title" style="margin-top: 0;">Benchmark Results</h3>
+        {% if benchmark %}
+        <table class="table" style="font-size: 13px;">
+            <tr><td>Static Mean Score</td><td>{{ "%.3f"|format(benchmark.avg_static) }}</td></tr>
+            <tr><td>Adaptive Mean Score</td><td>{{ "%.3f"|format(benchmark.avg_adaptive) }}</td></tr>
+            <tr><td>Total Interventions</td><td>{{ benchmark.interventions }}</td></tr>
+            <tr><td>Accepted Experiments</td><td>{{ benchmark.accepted_experiments }}</td></tr>
+            <tr><td>Paired t-test (t)</td><td>{{ "%.4f"|format(benchmark.t_stat) }}</td></tr>
+            <tr><td>p-value</td><td>{{ "%.4f"|format(benchmark.p_value) }}</td></tr>
+        </table>
+        <div style="font-size: 12px; margin-top: 12px; padding: 8px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px;">
+            {% if benchmark.p_value < 0.05 %}
+            AdaptiveRAG achieved a statistically significant higher observed mean semantic similarity than the static baseline in this benchmark.
+            {% else %}
+            AdaptiveRAG achieved a higher observed mean semantic similarity than the static baseline in this benchmark, but the difference was not statistically significant.
+            {% endif %}
+            <br><br>
+            Note: Rate limiting from language model providers can affect experiment completion during benchmarking.
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding: 20px 0;">
+            <p>No benchmark results available.</p>
+            <p style="font-size: 12px; color: var(--secondary-text);">Run <code>python scripts/run_benchmark.py</code> to generate results.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="panel">
+    <h3>Recent Queries</h3>
+    {% if recent_queries %}
+    <div class="table-container">
+        <table class="table" style="font-size: 13px;">
+            <thead>
+                <tr>
+                    <th>Query</th>
+                    <th>Evaluation</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for query in recent_queries %}
+                <tr style="cursor: pointer;" onclick="document.getElementById('dash_query_{{ query.id }}').style.display = document.getElementById('dash_query_{{ query.id }}').style.display === 'none' ? 'table-row' : 'none';">
+                    <td><span class="truncate-text" style="max-width: 400px;" title="{{ query.query }}">{{ query.query }}</span></td>
+                    <td>
+                        {% if query.evaluations %}
+                        {% if query.evaluations[0].failure_detected %}
+                        <span class="badge badge-warning">Failed Baseline</span>
+                        {% else %}
+                        <span class="badge badge-success">Passed Baseline</span>
+                        {% endif %}
+                        {% else %}
+                        <span class="badge badge-neutral">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td class="secondary-text">{{ query.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                <tr id="dash_query_{{ query.id }}" style="display: none; background: rgba(0,0,0,0.2);">
+                    <td colspan="3" style="padding: 16px;">
+                        <div class="grid-2 gap-2">
+                            <div>
+                                <h4 style="margin-top: 0; color: var(--action-hover);">Evaluation Metrics</h4>
+                                {% if query.evaluation %}
+                                <ul style="font-family: monospace; font-size: 13px; margin: 0; padding-left: 20px; line-height: 1.6;">
+                                    <li>Overall Score: <strong style="color: {% if query.evaluation.overall_score >= 0.7 %}var(--success){% elif query.evaluation.overall_score >= 0.4 %}var(--warning){% else %}var(--danger){% endif %};">{{ "%.3f"|format(query.evaluation.overall_score) }}</strong></li>
+                                    <li>Context Score: {{ "%.3f"|format(query.evaluation.context_score) }}</li>
+                                    <li>Faithfulness: {{ "%.3f"|format(query.evaluation.faithfulness_score) }}</li>
+                                    <li>Answer Relevance: {{ "%.3f"|format(query.evaluation.relevance_score) }}</li>
+                                </ul>
+                                {% else %}
+                                <p style="font-size: 12px; color: var(--secondary-text);">No evaluation recorded.</p>
+                                {% endif %}
+                                
+                                <h4 style="margin-top: 16px; color: var(--action-hover);">System Info</h4>
+                                <ul style="font-family: monospace; font-size: 13px; margin: 0; padding-left: 20px;">
+                                    <li>Latency: {{ "%.2f"|format(query.latency) }} seconds</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 style="margin-top: 0; color: var(--action-hover);">Final Retrieval Config</h4>
+                                <div style="font-family: monospace; font-size: 13px; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--white);">
+                                    {{ query.retrieval_config }}
+                                </div>
+                                {% if query.diagnosis %}
+                                <h4 style="margin-top: 16px; color: var(--action-hover);">Initial Diagnosis</h4>
+                                <div style="font-size: 13px; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--white);">
+                                    <strong>{{ query.diagnosis.failure_type }}</strong><br>
+                                    <span style="color: var(--secondary-text);">{{ query.diagnosis.explanation }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <h4 style="margin-top: 0; color: var(--action-hover);">Full Answer</h4>
+                            <div style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; line-height: 1.5; color: var(--white);">
+                                {{ query.answer }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No queries have been executed yet.</p>
+        <a href="/query" class="btn btn-primary mt-1">Ask a Question</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

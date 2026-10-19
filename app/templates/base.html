@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdaptiveRAG - {% block title %}Research Prototype{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=2.0">
+    {% block head %}{% endblock %}
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h2>AdaptiveRAG</h2>
+            <p>Research Prototype</p>
+        </div>
+        <div class="nav-menu">
+            <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
+            <a href="/documents" class="nav-link {% if request.url.path == '/documents' %}active{% endif %}">Documents</a>
+            <a href="/query" class="nav-link {% if request.url.path == '/query' %}active{% endif %}">Ask Question</a>
+            <a href="/conversations" class="nav-link {% if request.url.path.startswith('/conversations') %}active{% endif %}">Conversations</a>
+            <a href="/history" class="nav-link {% if request.url.path == '/history' %}active{% endif %}">History</a>
+            <a href="/evaluation" class="nav-link {% if request.url.path == '/evaluation' %}active{% endif %}">Evaluation</a>
+            <a href="/diagnosis" class="nav-link {% if request.url.path == '/diagnosis' %}active{% endif %}">Diagnostics
+                & Policy</a>
+            <a href="/experiments"
+                class="nav-link {% if request.url.path == '/experiments' %}active{% endif %}">Experiments</a>
+            <a href="/benchmark"
+                class="nav-link {% if request.url.path == '/benchmark' %}active{% endif %}">Benchmark</a>
+            
+            <hr style="border: 0; border-top: 1px solid #444; margin: 10px 0;">
+            <div style="padding: 0 20px; font-size: 11px; text-transform: uppercase; color: #888; letter-spacing: 1px; margin-bottom: 5px;">Research Features</div>
+            <a href="/experiment/builder" class="nav-link {% if request.url.path == '/experiment/builder' %}active{% endif %}">Experiment Builder</a>
+            <a href="/memory" class="nav-link {% if request.url.path == '/memory' %}active{% endif %}">Optimization Memory</a>
+            <a href="/lab" class="nav-link {% if request.url.path == '/lab' %}active{% endif %}">Failure Analysis Lab</a>
+            <a href="/config/history" class="nav-link {% if request.url.path == '/config/history' %}active{% endif %}">Configuration History</a>
+        </div>
+        <div class="sidebar-footer">
+            <div class="system-status">
+                <div class="status-dot"></div>
+                System Running
+            </div>
+        </div>
+    </div>
+    <div class="main-content">
+        {% block content %}{% endblock %}
+
+        <div class="global-footer">
+            AdaptiveRAG &bull; &bull;
+        </div>
+    </div>
+
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

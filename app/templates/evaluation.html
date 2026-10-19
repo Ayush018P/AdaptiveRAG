@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Evaluation History{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h1>Evaluation History</h1>
+    <p class="page-description">Review automated evaluation results from previous queries.</p>
+</div>
+
+<div class="panel">
+    {% if evals %}
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Query</th>
+                    <th>Faithfulness</th>
+                    <th>Context Rel.</th>
+                    <th>Answer Rel.</th>
+                    <th>Completeness</th>
+                    <th>Overall</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ev in evals %}
+                <tr>
+                    <td><span class="truncate-text" title="{{ ev.query }}">{{ ev.query }}</span></td>
+                    <td>{{ "%.2f"|format(ev.evaluation.faithfulness_score) if ev.evaluation else '-' }}</td>
+                    <td>{{ "%.2f"|format(ev.evaluation.context_score) if ev.evaluation else '-' }}</td>
+                    <td>{{ "%.2f"|format(ev.evaluation.relevance_score) if ev.evaluation else '-' }}</td>
+                    <td>{{ "%.2f"|format(ev.evaluation.completeness_score) if ev.evaluation else '-' }}</td>
+                    <td><strong style="color: var(--primary-color);">{{ "%.2f"|format(ev.evaluation.overall_score) if
+                            ev.evaluation else '-' }}</strong></td>
+                    <td>
+                        {% if ev.evaluation and ev.evaluation.failure_detected %}
+                        <span class="badge badge-warning">REVIEW</span>
+                        {% else %}
+                        <span class="badge badge-success">PASS</span>
+                        {% endif %}
+                    </td>
+                    <td class="secondary-text">{{ ev.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No evaluations yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

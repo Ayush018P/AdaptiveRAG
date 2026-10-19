@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - AdaptiveRAG</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=2.0">
+    <style>
+        body { display: flex; justify-content: center; align-items: center; height: 100vh; background-color: var(--bg-color); }
+        .auth-panel { background: var(--panel-bg); padding: 30px; border-radius: 8px; width: 100%; max-width: 400px; border: 1px solid var(--border-color); }
+        .auth-panel h2 { margin-top: 0; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <div class="auth-panel">
+        <h2>Login to AdaptiveRAG</h2>
+        {% if error %}
+        <div style="color: var(--danger); margin-bottom: 15px; font-weight: 500;">{{ error }}</div>
+        {% endif %}
+        <form action="/login" method="post">
+            <div style="margin-bottom: 15px;">
+                <label style="display: block; margin-bottom: 5px;">Username</label>
+                <input type="text" name="username" class="form-control" style="width: 100%;" required>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 5px;">Password</label>
+                <input type="password" name="password" class="form-control" style="width: 100%;" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+        </form>
+        <div style="margin-top: 15px; text-align: center; font-size: 14px;">
+            <a href="/register" style="color: var(--action-color);">Create an account</a>
+        </div>
+    </div>
+</body>
+</html>

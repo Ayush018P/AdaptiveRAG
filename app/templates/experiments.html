@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Experiments{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h1>Experiments</h1>
+    <p class="page-description">Controlled experiments comparing baseline and candidate retrieval configurations.</p>
+</div>
+
+<div class="panel">
+    {% if experiments %}
+
+    {% set accepted = experiments | selectattr('decision', 'equalto', 'ACCEPT') | list | length %}
+    {% set rejected = (experiments | length) - accepted %}
+
+    <div class="grid-2 gap-2 mb-3">
+        <div>
+            <h3 class="workflow-title">Experiment Outcome</h3>
+            <div style="margin-top: 16px;">
+                <div
+                    style="display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; font-family: monospace;">
+                    <div style="width: 80px; margin-right: 8px;">Accepted</div>
+                    <div style="flex-grow: 1; background: rgba(255,255,255,0.1); height: 12px; border-radius: 2px;">
+                        <div
+                            style="background: var(--success); height: 12px; border-radius: 2px; width: {{ (accepted / (experiments|length) * 100)|round|int }}%; max-width: 100%;">
+                        </div>
+                    </div>
+                    <div style="margin-left: 8px; width: 40px; text-align: right;">{{ accepted }}</div>
+                </div>
+                <div style="display: flex; align-items: center; font-size: 13px; font-family: monospace;">
+                    <div style="width: 80px; margin-right: 8px;">Rejected</div>
+                    <div style="flex-grow: 1; background: rgba(255,255,255,0.1); height: 12px; border-radius: 2px;">
+                        <div
+                            style="background: var(--danger); height: 12px; border-radius: 2px; width: {{ (rejected / (experiments|length) * 100)|round|int }}%; max-width: 100%;">
+                        </div>
+                    </div>
+                    <div style="margin-left: 8px; width: 40px; text-align: right;">{{ rejected }}</div>
+                </div>
+            </div>
+            <p style="font-size: 12px; color: var(--secondary-text); margin-top: 12px;">Total experiments run across all
+                queries. The candidate configuration is retained only when the experiment satisfies the system's
+                acceptance criteria.</p>
+        </div>
+
+        <div>
+            <h3 class="workflow-title">Latest Experiment (EXP-{{ "%03d"|format(experiments[0].id) }})</h3>
+            <div style="margin-top: 16px;">
+                <div
+                    style="display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; font-family: monospace;">
+                    <div style="width: 80px; margin-right: 8px;">Baseline</div>
+                    <div style="flex-grow: 1; background: rgba(255,255,255,0.1); height: 12px; border-radius: 2px;">
+                        <div
+                            style="background: rgba(255,255,255,0.3); height: 12px; border-radius: 2px; width: {{ (experiments[0].baseline_score * 100)|round|int }}%; max-width: 100%;">
+                        </div>
+                    </div>
+                    <div style="margin-left: 8px; width: 40px; text-align: right;">{{
+                        "%.2f"|format(experiments[0].baseline_score) }}</div>
+                </div>
+                <div style="display: flex; align-items: center; font-size: 13px; font-family: monospace;">
+                    <div style="width: 80px; margin-right: 8px;">Candidate</div>
+                    <div style="flex-grow: 1; background: rgba(255,255,255,0.1); height: 12px; border-radius: 2px;">
+                        <div
+                            style="background: {% if experiments[0].decision == 'ACCEPT' %}var(--success){% else %}var(--danger){% endif %}; height: 12px; border-radius: 2px; width: {{ (experiments[0].candidate_score * 100)|round|int }}%; max-width: 100%;">
+                        </div>
+                    </div>
+                    <div style="margin-left: 8px; width: 40px; text-align: right;">{{
+                        "%.2f"|format(experiments[0].candidate_score) }}</div>
+                </div>
+            </div>
+            <p style="font-size: 12px; color: var(--secondary-text); margin-top: 12px;">Comparison of evaluation scores.
+                The candidate ({{ experiments[0].hypothesis_obj.action | replace('_', ' ') | title }}) {% if
+                experiments[0].decision == 'ACCEPT' %}improved the baseline and was accepted{% else %}did not improve
+                the baseline and was rejected{% endif %}.</p>
+        </div>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 24px 0;">
+    <div class="table-container">
+        <table class="table" style="font-size: 13px;">
+            <thead>
+                <tr>
+                    <th>Experiment ID</th>
+                    <th>Query</th>
+                    <th>Failure Type</th>
+                    <th>Action</th>
+                    <th>Decision</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for exp in experiments %}
+                <tr style="cursor: pointer;" onclick="document.getElementById('exp_{{ exp.id }}').style.display = document.getElementById('exp_{{ exp.id }}').style.display === 'none' ? 'table-row' : 'none';">
+                    <td>EXP-{{ "%03d"|format(exp.id) }}</td>
+                    <td><span class="truncate-text" style="max-width: 250px;" title="{{ exp.query_text }}">{{ exp.query_text }}</span></td>
+                    <td>{{ exp.failure_type | replace('_', ' ') | title if exp.failure_type else 'Unknown' }}</td>
+                    <td>
+                        <div style="font-weight: 500;">{{ exp.hypothesis_obj.action | replace('_', ' ') | title if
+                            exp.hypothesis_obj else 'Unknown' }}</div>
+                    </td>
+                    <td>
+                        {% if exp.decision == 'ACCEPT' %}
+                        <span class="badge badge-success">ACCEPTED</span>
+                        {% else %}
+                        <span class="badge badge-danger">REJECTED</span>
+                        {% endif %}
+                    </td>
+                    <td class="secondary-text">{{ exp.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                <tr id="exp_{{ exp.id }}" style="display: none; background: rgba(0,0,0,0.2);">
+                    <td colspan="6" style="padding: 16px;">
+                        <div class="grid-2 gap-2">
+                            <div>
+                                <h4 style="margin-top: 0; color: var(--action-hover);">Optimization Hypothesis</h4>
+                                <div style="font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--white);">
+                                    {{ exp.hypothesis }}
+                                </div>
+                            </div>
+                            <div>
+                                <h4 style="margin-top: 0; color: var(--action-hover);">Configuration Comparison</h4>
+                                <div style="display: flex; gap: 16px;">
+                                    <div style="flex: 1; font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--white);">
+                                        <strong>Baseline (Score: {{ "%.3f"|format(exp.baseline_score) }})</strong><br>
+                                        {{ exp.baseline_configuration }}
+                                    </div>
+                                    <div style="flex: 1; font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid rgba(255,255,255,0.1); color: var(--white);">
+                                        <strong>Candidate (Score: {{ "%.3f"|format(exp.candidate_score) }})</strong><br>
+                                        {{ exp.candidate_configuration }}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No experiments have been run.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

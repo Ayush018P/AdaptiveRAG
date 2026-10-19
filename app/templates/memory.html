@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Optimization Memory{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h1>Optimization Memory</h1>
+    <p class="page-description">Historical log of proposed configurations and their impact on performance metrics.</p>
+</div>
+
+{% if not records %}
+<div class="empty-state">
+    <p>No optimization experiences recorded yet.</p>
+</div>
+{% else %}
+<div class="table-container">
+    <table class="table">
+        <tr>
+            <th>Timestamp</th>
+            <th>Failure Type</th>
+            <th>Action</th>
+            <th>Baseline Config</th>
+            <th>Candidate Config</th>
+            <th>Score Delta</th>
+            <th>Latency Delta</th>
+            <th>Decision</th>
+            <th>Reason</th>
+        </tr>
+        {% for r in records %}
+        <tr>
+            <td style="color: var(--secondary-text); font-size: 13px;">{{ r.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+            <td><span class="badge badge-neutral">{{ r.failure_type }}</span></td>
+            <td><strong>{{ r.action }}</strong></td>
+            <td style="font-family: monospace; font-size: 12px; color: var(--secondary-text);">
+                <pre style="margin:0;">{{ r.baseline_config | tojson(indent=2) }}</pre>
+            </td>
+            <td style="font-family: monospace; font-size: 12px; color: var(--action-color);">
+                <pre style="margin:0;">{{ r.candidate_config | tojson(indent=2) }}</pre>
+            </td>
+            <td style="font-weight: 600;">{{ "%.4f"|format(r.score_delta) }}</td>
+            <td>{{ "%.4f"|format(r.latency_delta) }} s</td>
+            <td>
+                {% if r.decision == 'ACCEPT' %}
+                    <span class="badge badge-success">ACCEPT</span>
+                {% else %}
+                    <span class="badge badge-danger">REJECT</span>
+                {% endif %}
+            </td>
+            <td style="color: var(--secondary-text); font-size: 13px; max-width: 250px;">{{ r.reason }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+{% endblock %}

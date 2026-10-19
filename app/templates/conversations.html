@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Conversations{% endblock %}
+
+{% block content %}
+<div class="flex justify-between items-center mb-3">
+    <div>
+        <h1>Conversations</h1>
+        <p class="page-description">Persistent multi-turn conversation threads across knowledge bases with verified citations and feedback.</p>
+    </div>
+    <button type="button" class="btn btn-primary" onclick="openNewConvModal()">+ New Conversation</button>
+</div>
+
+<div class="panel">
+    {% if conversations %}
+    <div class="table-container">
+        <table class="table" style="font-size: 13px;">
+            <thead>
+                <tr>
+                    <th>Conversation Title</th>
+                    <th>Knowledge Base</th>
+                    <th>Turns</th>
+                    <th>Latest Mode</th>
+                    <th>Last Activity</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for conv in conversations %}
+                <tr>
+                    <td style="max-width: 280px;">
+                        <a href="/conversations/{{ conv.id }}" style="font-weight: 600; color: var(--action-color); text-decoration: none; font-size: 14px;">
+                            {{ conv.title }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge badge-neutral" style="font-size: 11px;">{{ conv.kb_name }}</span>
+                    </td>
+                    <td>
+                        <span style="font-weight: 500;">{{ conv.query_count }} question{{ 's' if conv.query_count != 1 else '' }}</span>
+                    </td>
+                    <td>
+                        <span class="badge {% if conv.latest_mode == 'adaptive' %}badge-primary{% else %}badge-neutral{% endif %}" style="font-size: 11px;">
+                            {{ (conv.latest_mode or 'standard')|title }}
+                        </span>
+                    </td>
+                    <td class="secondary-text" style="font-size: 12px;">
+                        {{ conv.updated_at.strftime('%Y-%m-%d %H:%M') }}
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <a href="/conversations/{{ conv.id }}" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; text-decoration: none;">Open</a>
+                        {% if conv.is_owner %}
+                        <button type="button" class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="openRenameModal('{{ conv.id }}', '{{ conv.title|replace('\'', '\\\'') }}')">Rename</button>
+                        <form action="/conversations/{{ conv.id }}/delete" method="post" style="display: inline-block; margin: 0;" onsubmit="return confirm('Are you sure you want to delete this conversation and all its queries?');">
+                            <button type="submit" class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No conversations found in your workspace.</p>
+        <button type="button" class="btn btn-primary mt-1" onclick="openNewConvModal()">Start Your First Conversation</button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- New Conversation Modal -->
+<div id="newConvModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box" style="max-width: 500px;">
+        <div class="flex justify-between items-center mb-2">
+            <h3 style="margin: 0;">Start New Conversation</h3>
+            <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="closeNewConvModal()">&times;</button>
+        </div>
+        <form action="/conversations" method="post">
+            <div class="form-group mb-2">
+                <label class="form-label">Conversation Title (Optional)</label>
+                <input type="text" name="title" class="form-control" placeholder="e.g. Authentication Architecture Research">
+                <small class="secondary-text">Leave blank to auto-title from your first question.</small>
+            </div>
+            {% if knowledge_bases %}
+            <div class="form-group mb-2">
+                <label class="form-label">Scope to Knowledge Base (Optional)</label>
+                <select name="kb_id" class="form-control">
+                    <option value="">All Knowledge Bases (Workspace Scope)</option>
+                    {% for kb in knowledge_bases %}
+                    <option value="{{ kb.id }}">{{ kb.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+                <button type="button" class="btn btn-secondary" onclick="closeNewConvModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Conversation</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Rename Modal -->
+<div id="renameModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box" style="max-width: 500px;">
+        <div class="flex justify-between items-center mb-2">
+            <h3 style="margin: 0;">Rename Conversation</h3>
+            <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="closeRenameModal()">&times;</button>
+        </div>
+        <form id="renameForm" method="post">
+            <div class="form-group mb-2">
+                <label class="form-label">New Title</label>
+                <input type="text" name="title" id="renameTitleInput" class="form-control" required maxlength="120">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+                <button type="button" class="btn btn-secondary" onclick="closeRenameModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Title</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-box {
+    background: #111827;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openNewConvModal() {
+    document.getElementById('newConvModal').style.display = 'flex';
+}
+function closeNewConvModal() {
+    document.getElementById('newConvModal').style.display = 'none';
+}
+function openRenameModal(convId, currentTitle) {
+    document.getElementById('renameForm').action = '/conversations/' + convId + '/rename';
+    document.getElementById('renameTitleInput').value = currentTitle;
+    document.getElementById('renameModal').style.display = 'flex';
+}
+function closeRenameModal() {
+    document.getElementById('renameModal').style.display = 'none';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block title %}Knowledge Bases & Documents{% endblock %}
+
+{% block content %}
+<div class="mb-3 flex justify-between items-center" style="flex-wrap: wrap; gap: 12px;">
+    <div>
+        <h1>Knowledge Bases &amp; Documents</h1>
+        <p class="page-description">Organize documents into knowledge bases, manage ingestion status, and rebuild retrieval indices.</p>
+    </div>
+    <div class="flex gap-2" style="align-items: center;">
+        <button type="button" class="btn btn-primary" onclick="openModal('createKbModal')">+ New Knowledge Base</button>
+        <form action="/documents/reindex" method="post" style="margin: 0;">
+            <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+            <button type="submit" class="btn btn-secondary" title="Rebuild indices across all knowledge bases in this workspace">Rebuild All Indices</button>
+        </form>
+    </div>
+</div>
+
+{% if message %}
+<div class="panel mb-3" style="background-color: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); color: var(--success); padding: 12px 16px;">
+    <strong>Success:</strong> {{ message }}
+</div>
+{% endif %}
+{% if error %}
+<div class="panel mb-3" style="background-color: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); color: #ef4444; padding: 12px 16px;">
+    <strong>Error:</strong> {{ error }}
+</div>
+{% endif %}
+
+<!-- Knowledge Base Selector Tabs -->
+<div class="panel mb-3" style="padding: 20px;">
+    <div class="flex justify-between items-center mb-2">
+        <h3 style="margin: 0;">Knowledge Bases in Workspace</h3>
+        <span class="secondary-text">{{ knowledge_bases|length }} total</span>
+    </div>
+
+    {% if knowledge_bases %}
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; margin-top: 14px;">
+        {% for kb_item in knowledge_bases %}
+        <div style="background: {% if active_kb and active_kb.id == kb_item.id %}rgba(59, 130, 246, 0.15){% else %}rgba(15, 23, 42, 0.6){% endif %};
+                    border: 1px solid {% if active_kb and active_kb.id == kb_item.id %}var(--action-color){% else %}var(--border-color){% endif %};
+                    border-radius: 8px; padding: 14px; position: relative; transition: all 0.2s ease;">
+            <div class="flex justify-between items-center">
+                <a href="/documents?kb_id={{ kb_item.id }}" style="font-weight: 600; font-size: 15px; color: {% if active_kb and active_kb.id == kb_item.id %}var(--action-color){% else %}var(--primary-color){% endif %}; text-decoration: none;">
+                    {{ kb_item.name }}
+                </a>
+                {% if active_kb and active_kb.id == kb_item.id %}
+                <span class="badge badge-primary" style="font-size: 10px; padding: 2px 6px;">Active</span>
+                {% endif %}
+            </div>
+            {% if kb_item.description %}
+            <p style="font-size: 12px; color: var(--secondary-text); margin: 6px 0 10px 0; line-height: 1.4;">{{ kb_item.description }}</p>
+            {% else %}
+            <div style="height: 6px;"></div>
+            {% endif %}
+            <div class="flex items-center gap-2" style="font-size: 12px; color: var(--secondary-text); border-top: 1px solid rgba(255,255,255,0.05); padding-top: 8px;">
+                <span><strong>{{ kb_item.doc_count }}</strong> docs</span>
+                <span>&bull;</span>
+                <span><strong>{{ kb_item.chunk_count }}</strong> chunks</span>
+                {% if kb_item.failed_count > 0 %}
+                <span>&bull;</span>
+                <span style="color: var(--danger);"><strong>{{ kb_item.failed_count }}</strong> failed</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state" style="text-align: center; padding: 24px;">
+        <p style="color: var(--secondary-text); margin-bottom: 12px;">No knowledge bases found in this workspace.</p>
+        <button type="button" class="btn btn-primary" onclick="openModal('createKbModal')">Create Knowledge Base</button>
+    </div>
+    {% endif %}
+</div>
+
+{% if active_kb %}
+<!-- Active Knowledge Base Controls & Actions -->
+<div class="panel mb-3">
+    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h2 style="margin: 0; display: inline-block;">{{ active_kb.name }}</h2>
+            {% if active_kb.description %}
+            <p class="secondary-text" style="margin: 4px 0 0 0;">{{ active_kb.description }}</p>
+            {% endif %}
+        </div>
+        <div class="flex gap-2" style="align-items: center;">
+            <a href="/query?kb_id={{ active_kb.id }}" class="btn btn-secondary" style="font-size: 13px;">Query this KB &rarr;</a>
+            <button type="button" class="btn btn-secondary" style="font-size: 13px;" onclick="openRenameModal('{{ active_kb.id }}', '{{ active_kb.name }}', '{{ active_kb.description }}')">Rename</button>
+            <form action="/knowledge-bases/{{ active_kb.id }}/reindex" method="post" style="margin: 0;">
+                <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+                <button type="submit" class="btn btn-secondary" style="font-size: 13px;">Reindex KB</button>
+            </form>
+            <button type="button" class="btn btn-secondary" style="font-size: 13px; color: var(--danger); border-color: rgba(239, 68, 68, 0.4);" onclick="openDeleteKbModal('{{ active_kb.id }}', '{{ active_kb.name }}')">Delete KB</button>
+        </div>
+    </div>
+</div>
+
+<!-- Upload into active KB -->
+<div class="panel mb-3">
+    <h3>Upload Document to &ldquo;{{ active_kb.name }}&rdquo;</h3>
+    <form action="/documents/upload" method="post" enctype="multipart/form-data" class="flex gap-2 items-center mt-2" style="flex-wrap: wrap;">
+        <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+        <input type="hidden" name="kb_id" value="{{ active_kb.id }}">
+        <input type="file" name="file" class="form-control" style="max-width: 400px;" required>
+        <button type="submit" class="btn btn-primary">Upload &amp; Ingest</button>
+    </form>
+    <p class="secondary-text mt-1">Supported formats: PDF &middot; TXT &middot; Markdown &bull; Maximum file size: 10 MB</p>
+</div>
+
+<!-- Document List for Active KB -->
+<div class="panel">
+    {% if documents %}
+    <h3 class="workflow-title">Document &amp; Chunk Distribution</h3>
+    <div style="margin-top: 16px; margin-bottom: 24px;">
+        {% set max_chunks = (documents | map(attribute='chunks') | map('length') | max) %}
+        {% set max_c = max_chunks if max_chunks > 0 else 1 %}
+        {% for doc in documents %}
+        <div style="display: flex; align-items: center; margin-bottom: 6px; font-size: 13px; font-family: monospace;">
+            <div style="width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-right: 8px;" title="{{ doc.filename }}">
+                {{ doc.filename }}
+            </div>
+            <div style="flex-grow: 1; background: rgba(255,255,255,0.1); height: 10px; border-radius: 2px;">
+                <div style="background: var(--action-color); height: 10px; border-radius: 2px; width: {{ (doc.chunks|length / max_c * 100)|round|int }}%; max-width: 100%;"></div>
+            </div>
+            <div style="margin-left: 8px; width: 80px; text-align: right; color: var(--secondary-text);">
+                {{ doc.chunks|length }} chunks
+            </div>
+        </div>
+        {% endfor %}
+        <p style="font-size: 12px; color: var(--secondary-text); margin-top: 12px;">
+            Semantic chunks generated from documents in <em>{{ active_kb.name }}</em>. These chunks populate the isolated vector and lexical search indices for this knowledge base.
+        </p>
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 24px 0;">
+
+    <div class="flex justify-between items-center mb-2">
+        <h3 style="margin: 0;">Indexed Documents ({{ documents|length }})</h3>
+    </div>
+
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Filename</th>
+                    <th>Type</th>
+                    <th>Chunks</th>
+                    <th>Status</th>
+                    <th>Ingestion Detail / Error</th>
+                    <th>Uploaded At</th>
+                    <th style="text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in documents %}
+                <tr>
+                    <td style="font-weight: 500;">
+                        <span title="{{ doc.filename }}">{{ doc.filename }}</span>
+                    </td>
+                    <td class="secondary-text">{{ doc.doc_type }}</td>
+                    <td>{{ doc.chunks | length if doc.chunks else '0' }}</td>
+                    <td>
+                        {% if doc.status|lower == 'ready' or doc.status|lower == 'ingested' %}
+                        <span class="badge badge-success">READY</span>
+                        {% elif doc.status|lower == 'processing' or doc.status|lower == 'pending' %}
+                        <span class="badge badge-warning">{{ doc.status }}</span>
+                        {% else %}
+                        <span class="badge badge-danger">FAILED</span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 260px; font-size: 12px;">
+                        {% if doc.error_message %}
+                        <span style="color: var(--danger); font-family: monospace; word-break: break-word;">{{ doc.error_message }}</span>
+                        {% elif doc.status|lower == 'ready' or doc.status|lower == 'ingested' %}
+                        <span class="secondary-text">Ingestion complete</span>
+                        {% else %}
+                        <span class="secondary-text">In progress...</span>
+                        {% endif %}
+                    </td>
+                    <td class="secondary-text" style="font-size: 12px; white-space: nowrap;">
+                        {{ doc.ingestion_timestamp.strftime('%Y-%m-%d %H:%M') if doc.ingestion_timestamp else '-' }}
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        <div class="flex gap-1" style="justify-content: flex-end;">
+                            {% if doc.status|lower == 'failed' %}
+                            <form action="/documents/{{ doc.id }}/retry" method="post" style="margin: 0; display: inline;">
+                                <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+                                <button type="submit" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; color: var(--warning);">Retry</button>
+                            </form>
+                            {% endif %}
+                            <button type="button" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px;" onclick="openReplaceModal('{{ doc.id }}', '{{ doc.filename }}')">Replace</button>
+                            <form action="/documents/{{ doc.id }}/delete" method="post" style="margin: 0; display: inline;" onsubmit="return confirm('Are you sure you want to delete \'{{ doc.filename }}\'? Its chunks and searchable content will be permanently removed.');">
+                                <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+                                <button type="submit" class="btn btn-secondary" style="padding: 4px 8px; font-size: 12px; color: var(--danger);">Delete</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state" style="text-align: center; padding: 32px;">
+        <p style="color: var(--secondary-text); font-size: 15px; margin-bottom: 8px;">No documents in &ldquo;{{ active_kb.name }}&rdquo; yet.</p>
+        <p class="secondary-text" style="margin-top: 0;">Upload a PDF, TXT, or Markdown document above to begin indexing.</p>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Modal: Create Knowledge Base -->
+<div id="createKbModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box">
+        <h3 style="margin-top: 0;">Create Knowledge Base</h3>
+        <form action="/knowledge-bases" method="post">
+            <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+            <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" name="name" class="form-control" placeholder="e.g. Technical Documentation" required maxlength="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description (Optional)</label>
+                <textarea name="description" class="form-control" style="min-height: 80px;" placeholder="Brief description of this knowledge base..."></textarea>
+            </div>
+            <div class="flex justify-between" style="margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('createKbModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Rename Knowledge Base -->
+<div id="renameKbModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box">
+        <h3 style="margin-top: 0;">Rename Knowledge Base</h3>
+        <form id="renameKbForm" method="post">
+            <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+            <div class="form-group">
+                <label class="form-label">Name *</label>
+                <input type="text" name="name" id="renameKbName" class="form-control" required maxlength="100">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" id="renameKbDesc" class="form-control" style="min-height: 80px;"></textarea>
+            </div>
+            <div class="flex justify-between" style="margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('renameKbModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Delete Knowledge Base -->
+<div id="deleteKbModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box">
+        <h3 style="margin-top: 0; color: var(--danger);">Delete Knowledge Base</h3>
+        <p style="color: var(--primary-color);">Are you sure you want to delete <strong id="deleteKbNameSpan"></strong>?</p>
+        <p style="color: var(--secondary-text); font-size: 13px;">This action will permanently remove all documents, chunks, files, and retrieval indices associated with this knowledge base.</p>
+        <form id="deleteKbForm" method="post">
+            <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+            <input type="hidden" name="confirm" value="true">
+            <div class="flex justify-between" style="margin-top: 24px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('deleteKbModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary" style="background: var(--danger); border-color: var(--danger);">Permanently Delete</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal: Replace Document -->
+<div id="replaceDocModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box">
+        <h3 style="margin-top: 0;">Replace Document</h3>
+        <p style="color: var(--secondary-text); font-size: 13px;">Replacing <strong id="replaceDocNameSpan" style="color: var(--primary-color);"></strong> will purge its previous chunks and re-index the new file.</p>
+        <form id="replaceDocForm" method="post" enctype="multipart/form-data">
+            <input type="hidden" name="workspace_id" value="{{ workspace_id }}">
+            <div class="form-group">
+                <label class="form-label">Select Replacement File (PDF, TXT, MD &middot; Max 10MB) *</label>
+                <input type="file" name="file" class="form-control" required>
+            </div>
+            <div class="flex justify-between" style="margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('replaceDocModal')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Upload &amp; Replace</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-box {
+    background: #111827;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 28px;
+    width: 100%;
+    max-width: 480px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+</style>
+
+<script>
+function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+}
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+function openRenameModal(kbId, name, desc) {
+    document.getElementById('renameKbForm').action = '/knowledge-bases/' + kbId + '/rename';
+    document.getElementById('renameKbName').value = name;
+    document.getElementById('renameKbDesc').value = desc || '';
+    openModal('renameKbModal');
+}
+function openDeleteKbModal(kbId, name) {
+    document.getElementById('deleteKbForm').action = '/knowledge-bases/' + kbId + '/delete';
+    document.getElementById('deleteKbNameSpan').textContent = name;
+    openModal('deleteKbModal');
+}
+function openReplaceModal(docId, filename) {
+    document.getElementById('replaceDocForm').action = '/documents/' + docId + '/replace';
+    document.getElementById('replaceDocNameSpan').textContent = filename;
+    openModal('replaceDocModal');
+}
+</script>
+{% endblock %}

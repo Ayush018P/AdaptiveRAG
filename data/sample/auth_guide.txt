@@ -1,0 +1,5 @@
+The authentication mechanism uses OAuth 2.0 with JWT tokens.
+
+Pass the token in the Authorization header as 'Bearer <token>'. Tokens expire in 60 minutes. To get a new token, use the refresh token endpoint.
+
+All external integrations must authenticate via the gateway proxy using their provisioned client ID and client secret to obtain this token. User sessions are tracked via Redis to prevent token reuse upon logout.

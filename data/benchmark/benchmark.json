@@ -1,0 +1,142 @@
+[
+    {
+        "id": 1,
+        "question": "What is the limit for rate limiting on the API endpoints?",
+        "expected_answer": "100 requests per minute per user.",
+        "source_document": "api_docs.txt",
+        "difficulty": "easy"
+    },
+    {
+        "id": 2,
+        "question": "How long do JWT tokens take to expire?",
+        "expected_answer": "60 minutes.",
+        "source_document": "auth_guide.txt",
+        "difficulty": "easy"
+    },
+    {
+        "id": 3,
+        "question": "What should I do if the app fails to start?",
+        "expected_answer": "Check the database connection, ensure the PostgreSQL container is running.",
+        "source_document": "troubleshooting.txt",
+        "difficulty": "easy"
+    },
+    {
+        "id": 4,
+        "question": "What port does the PostgreSQL database use?",
+        "expected_answer": "5432.",
+        "source_document": "deployment.txt",
+        "difficulty": "easy"
+    },
+    {
+        "id": 5,
+        "question": "Are passwords required to have symbols and numbers? If so, what is the minimum length?",
+        "expected_answer": "Yes, passwords must contain symbols and numbers and be at least 12 characters long.",
+        "source_document": "security_policy.txt",
+        "difficulty": "medium"
+    },
+    {
+        "id": 6,
+        "question": "How do clients handle pagination?",
+        "expected_answer": "Using limit and offset query parameters and checking the X-Total-Count header.",
+        "source_document": "api_docs.txt",
+        "difficulty": "medium"
+    },
+    {
+        "id": 7,
+        "question": "Why is Redis required and on which port?",
+        "expected_answer": "Redis is required for caching and session tracking on port 6379.",
+        "source_document": "deployment.txt, auth_guide.txt",
+        "difficulty": "hard"
+    },
+    {
+        "id": 8,
+        "question": "What is the recommended deployment method for production environments?",
+        "expected_answer": "Kubernetes via the provided Helm charts with auto-scaling node pools.",
+        "source_document": "deployment.txt",
+        "difficulty": "medium"
+    },
+    {
+        "id": 9,
+        "question": "Where should discovered vulnerabilities be reported?",
+        "expected_answer": "Through the bug bounty portal.",
+        "source_document": "security_policy.txt",
+        "difficulty": "easy"
+    },
+    {
+        "id": 10,
+        "question": "What encryption standard is used for data at rest?",
+        "expected_answer": "AES-256 standard.",
+        "source_document": "security_policy.txt",
+        "difficulty": "medium"
+    },
+    {
+        "id": 11,
+        "question": "What should I check if there is an unexpected 500 error?",
+        "expected_answer": "Check the uvicorn error logs in the /var/log directory.",
+        "source_document": "troubleshooting.txt",
+        "difficulty": "medium"
+    },
+    {
+        "id": 12,
+        "question": "How do external integrations authenticate?",
+        "expected_answer": "Via the gateway proxy using their provisioned client ID and client secret to obtain a token.",
+        "source_document": "auth_guide.txt",
+        "difficulty": "hard"
+    },
+    {
+        "id": 13,
+        "question": "What happens when a token expires?",
+        "expected_answer": "Use the refresh token endpoint to get a new token.",
+        "source_document": "auth_guide.txt",
+        "difficulty": "medium"
+    },
+    {
+        "id": 14,
+        "question": "How often are access logs audited?",
+        "expected_answer": "Every 30 days.",
+        "source_document": "security_policy.txt",
+        "difficulty": "easy"
+    },
+    {
+        "id": 15,
+        "question": "What does HTTP 429 mean in the API context?",
+        "expected_answer": "Too Many Requests.",
+        "source_document": "api_docs.txt",
+        "difficulty": "easy"
+    },
+    {
+        "id": 16,
+        "question": "What does the CEO's dog's name have to do with deployment?",
+        "expected_answer": "The information is unavailable.",
+        "source_document": "none",
+        "difficulty": "absent"
+    },
+    {
+        "id": 17,
+        "question": "How do I clear the FAISS vector index memory?",
+        "expected_answer": "The information is unavailable.",
+        "source_document": "none",
+        "difficulty": "absent"
+    },
+    {
+        "id": 18,
+        "question": "connection refused help",
+        "expected_answer": "The PostgreSQL container is not running or credentials are wrong.",
+        "source_document": "troubleshooting.txt",
+        "difficulty": "ambiguous"
+    },
+    {
+        "id": 19,
+        "question": "What is TLS 1.3 used for?",
+        "expected_answer": "It is strictly enforced for all inbound HTTP traffic.",
+        "source_document": "security_policy.txt",
+        "difficulty": "medium"
+    },
+    {
+        "id": 20,
+        "question": "How do I inject secrets in production?",
+        "expected_answer": "Secrets must be injected using a secure vault rather than environment variables.",
+        "source_document": "deployment.txt",
+        "difficulty": "medium"
+    }
+]

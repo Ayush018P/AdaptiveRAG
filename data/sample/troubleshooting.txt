@@ -1,0 +1,5 @@
+If the app fails to start, check the database connection.
+
+The most common error is 'Connection refused' which means the PostgreSQL container is not running or credentials are wrong.
+
+If you encounter high latency, inspect the FAISS vector index memory consumption. Ensure that enough RAM is allocated to the Docker container. For unexpected 500 errors, always check the uvicorn error logs in the /var/log directory.

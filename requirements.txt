@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+sentence-transformers
+faiss-cpu
+rank_bm25
+PyPDF2
+python-docx
+jinja2
+python-multipart
+requests
+pydantic
+pydantic-settings
+pytest
+tenacity

@@ -1,0 +1,522 @@
+{% extends "base.html" %}
+{% block title %}Ask a Question{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h1>Ask a Question</h1>
+    <p class="page-description">Query your knowledge bases, inspect verifiable citations, and trace autonomous adaptive retrieval decisions.</p>
+</div>
+
+<div class="panel">
+    <form action="/query" method="post" id="queryForm">
+        {% if knowledge_bases %}
+        <div class="form-group mb-2">
+            <label class="form-label">Target Knowledge Base</label>
+            <select name="kb_id" id="kb_id" class="form-control" style="max-width: 400px;">
+                <option value="" {% if not selected_kb_id %}selected{% endif %}>All Knowledge Bases (Workspace Scope)</option>
+                {% for kb in knowledge_bases %}
+                <option value="{{ kb.id }}" {% if selected_kb_id == kb.id %}selected{% endif %}>
+                    {{ kb.name }} ({{ kb.doc_count }} ready docs)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        {% if conversations %}
+        <div class="form-group mb-2">
+            <label class="form-label">Thread into Conversation (Optional)</label>
+            <select name="conversation_id" id="conversation_id" class="form-control" style="max-width: 400px;">
+                <option value="" {% if not selected_conversation_id %}selected{% endif %}>Standalone Question (New Thread)</option>
+                {% for conv in conversations %}
+                <option value="{{ conv.id }}" {% if selected_conversation_id == conv.id %}selected{% endif %}>
+                    {{ conv.title }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endif %}
+
+        <div class="form-group mb-2">
+            <label class="form-label">Execution Mode</label>
+            <div style="display: flex; gap: 20px; align-items: center; margin-top: 6px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; margin: 0;">
+                    <input type="radio" name="mode" value="standard" id="modeStandard" {% if (mode or selected_mode or 'standard') == 'standard' %}checked{% endif %}>
+                    <span style="font-weight: 600;">Standard Mode</span>
+                    <span class="secondary-text" style="font-size: 12px;">— Direct grounded Q&amp;A with verified citations</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; margin: 0;">
+                    <input type="radio" name="mode" value="adaptive" id="modeAdaptive" {% if (mode or selected_mode) == 'adaptive' %}checked{% endif %}>
+                    <span style="font-weight: 600;">Adaptive Mode</span>
+                    <span class="secondary-text" style="font-size: 12px;">— Closed-loop evaluation &amp; autonomous parameter adaptation</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label class="form-label">Question</label>
+            <textarea id="query" name="query" class="form-control" placeholder="Ask a question about your documents..." required>{{ query if query else '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary" id="runQueryBtn">Run Query</button>
+        
+        <div class="mt-2">
+            <a href="#" id="toggleAdvanced" style="font-size: 13px; color: var(--secondary-text); text-decoration: none;">+ Advanced Retrieval Configuration</a>
+            <div id="advancedSettings" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                <div class="grid-2">
+                    <div>
+                        <label class="form-label">Top-K Retrieval</label>
+                        <input type="number" class="form-control" value="{{ baseline_config.top_k if baseline_config else 5 }}" disabled>
+                    </div>
+                    <div>
+                        <label class="form-label">Dense Weight</label>
+                        <input type="text" class="form-control" value="{{ baseline_config.dense_weight if baseline_config else 0.65 }}" disabled>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Loading State -->
+<div id="loadingState" class="panel" style="display: none;">
+    <div class="loading-container" style="display: flex; align-items: center; gap: 12px;">
+        <div class="loading-spinner"></div>
+        <span style="font-weight: 500;">Executing hybrid retrieval &amp; generating verified response...</span>
+    </div>
+</div>
+
+{% if final_result %}
+<hr style="border: 0; border-top: 1px solid var(--border-color); margin: 32px 0;">
+
+<!-- Query & State Indicator -->
+<div style="margin-bottom: 24px;">
+    <div class="flex justify-between items-center" style="flex-wrap: wrap; gap: 10px;">
+        <div>
+            <div class="form-label" style="margin-bottom: 4px;">Query</div>
+            <div style="font-size: 20px; font-weight: 600;">{{ query }}</div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <span class="badge {% if mode == 'adaptive' %}badge-primary{% else %}badge-neutral{% endif %}" style="font-size: 13px; padding: 6px 12px;">
+                Mode: {{ (mode or 'standard')|title }}
+            </span>
+            {% if answer_status == 'SUCCESS' %}
+            <span class="badge badge-success" style="font-size: 13px; padding: 6px 12px;">Answer Generated</span>
+            {% elif answer_status == 'EMPTY_KNOWLEDGE_BASE' %}
+            <span class="badge badge-warning" style="font-size: 13px; padding: 6px 12px;">Empty Knowledge Base</span>
+            {% elif answer_status == 'NO_RELEVANT_CHUNKS' %}
+            <span class="badge badge-warning" style="font-size: 13px; padding: 6px 12px;">No Relevant Chunks</span>
+            {% elif answer_status == 'PROVIDER_FAILURE' %}
+            <span class="badge badge-danger" style="font-size: 13px; padding: 6px 12px;">LLM Provider Error</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Failure & Warning Banners -->
+{% if answer_status == 'EMPTY_KNOWLEDGE_BASE' %}
+<div class="panel mb-3" style="background-color: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 16px 20px;">
+    <h3 style="margin-top: 0; color: #fbbf24;">Target Knowledge Base is Empty</h3>
+    <p style="margin-bottom: 8px;">The selected knowledge base contains no ready documents. AdaptiveRAG strictly isolates knowledge bases and will not fall back to other knowledge bases.</p>
+    <a href="/documents" class="btn btn-secondary" style="font-size: 13px; margin-top: 4px;">Upload Documents to this Knowledge Base &rarr;</a>
+</div>
+{% elif answer_status == 'NO_RELEVANT_CHUNKS' %}
+<div class="panel mb-3" style="background-color: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 16px 20px;">
+    <h3 style="margin-top: 0; color: #fbbf24;">Insufficient Retrieved Evidence</h3>
+    <p style="margin: 0;">Neither dense semantic search nor BM25 lexical search retrieved chunks matching this query. No fabricated answer was generated.</p>
+</div>
+{% elif answer_status == 'PROVIDER_FAILURE' %}
+<div class="panel mb-3" style="background-color: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.4); color: #f87171; padding: 16px 20px;">
+    <h3 style="margin-top: 0; color: #f87171;">Generation Provider Failure</h3>
+    <p style="margin-bottom: 4px;">The language model failed to complete the generation request:</p>
+    <code style="background: rgba(0,0,0,0.4); padding: 4px 8px; border-radius: 4px; display: inline-block; color: #fca5a5;">{{ generation_error or final_result.answer }}</code>
+    <p style="margin-top: 8px; font-size: 12px; color: var(--secondary-text);">Check your API key and connection configuration. AdaptiveRAG does not fabricate fallback answers.</p>
+</div>
+{% endif %}
+
+<!-- Main Answer Panel -->
+{% if answer_status == 'SUCCESS' %}
+<div class="panel mb-3" style="border-top: 3px solid var(--action-color);">
+    <div class="flex justify-between items-center mb-2">
+        <h3 style="margin: 0;">Generated Response</h3>
+        <span class="secondary-text" style="font-size: 12px;">Total Latency: {{ "%.2f"|format(final_result.total_latency if final_result.total_latency is defined and final_result.total_latency else (final_result.latency if final_result.latency is defined and final_result.latency else 0.0)) }}s</span>
+    </div>
+    
+    <div style="font-size: 16px; line-height: 1.7; color: var(--primary-color); white-space: pre-wrap; margin-bottom: 20px;">{{ final_result.answer }}</div>
+
+    {% if final_result.citations %}
+    <div style="border-top: 1px solid var(--border-color); padding-top: 14px;">
+        <div class="form-label" style="margin-bottom: 8px;">Referenced Citations (Click to inspect source excerpt)</div>
+        <div class="flex gap-2" style="flex-wrap: wrap;">
+            {% for cit in final_result.citations %}
+            <a href="#cit-card-{{ cit.citation_id }}" class="badge badge-primary" style="text-decoration: none; font-size: 12px; padding: 4px 10px; cursor: pointer;">
+                [{{ cit.citation_id }}] {{ cit.filename }}{% if cit.page_number %}, Page {{ cit.page_number }}{% endif %}
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if query_id %}
+    <div id="feedback-panel-{{ query_id }}" style="border-top: 1px solid var(--border-color); padding-top: 12px; margin-top: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div id="feedback-display-{{ query_id }}">
+            <span class="secondary-text" style="font-size: 12px;">Was this answer helpful?</span>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <button type="button" class="btn btn-secondary" style="padding: 3px 10px; font-size: 12px;" onclick="openFeedbackModal({{ query_id }}, 'helpful')">
+                👍 Helpful
+            </button>
+            <button type="button" class="btn btn-secondary" style="padding: 3px 10px; font-size: 12px;" onclick="openFeedbackModal({{ query_id }}, 'not_helpful')">
+                👎 Not helpful
+            </button>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Verifiable Supporting Evidence Panel -->
+{% if final_result.citations %}
+<div class="panel mb-3">
+    <div class="flex justify-between items-center mb-2">
+        <div>
+            <h3 style="margin: 0;">Verifiable Supporting Evidence ({{ final_result.citations|length }} Sources)</h3>
+            <p class="secondary-text" style="margin: 2px 0 0 0;">Every citation corresponds to an authorized, persisted chunk in your workspace.</p>
+        </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 16px;">
+        {% for cit in final_result.citations %}
+        <div id="cit-card-{{ cit.citation_id }}" style="background: rgba(15, 23, 42, 0.7); border: 1px solid var(--border-color); border-radius: 8px; padding: 18px; transition: border-color 0.2s ease;">
+            <div class="flex justify-between items-center mb-1" style="flex-wrap: wrap; gap: 8px;">
+                <div class="flex items-center gap-2">
+                    <span class="badge badge-primary" style="font-weight: 700;">Source [{{ cit.citation_id }}]</span>
+                    <strong style="font-size: 14px; color: var(--primary-color);">{{ cit.filename }}</strong>
+                    <span class="secondary-text" style="font-size: 12px;">({{ cit.doc_type }})</span>
+                    {% if cit.page_number %}
+                    <span class="badge badge-neutral" style="font-size: 11px; padding: 2px 6px;">Page {{ cit.page_number }}</span>
+                    {% endif %}
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="secondary-text" style="font-size: 12px;">Hybrid Score: <strong>{{ "%.3f"|format(cit.score) }}</strong></span>
+                    <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 11px;" onclick="inspectChunk('{{ cit.chunk_id }}')">Inspect Chunk</button>
+                </div>
+            </div>
+
+            <div style="background: rgba(0,0,0,0.25); border-left: 3px solid var(--action-color); padding: 10px 14px; margin-top: 10px; border-radius: 0 4px 4px 0; font-size: 13px; line-height: 1.5; color: #e2e8f0; font-family: inherit;">
+                &ldquo;{{ cit.excerpt }}&rdquo;
+            </div>
+
+            <div class="flex items-center gap-3 mt-2" style="font-size: 11px; color: var(--secondary-text); font-family: monospace;">
+                <span>Chunk ID: {{ cit.chunk_id }}</span>
+                <span>&bull;</span>
+                <span>Dense Score: {{ "%.3f"|format(cit.dense_score) }}</span>
+                <span>&bull;</span>
+                <span>BM25 Score: {{ "%.3f"|format(cit.bm25_score) }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Transparent Adaptive Execution Trace (Adaptive Mode Only) -->
+{% if mode == 'adaptive' %}
+<div class="panel mb-3">
+    <div class="flex justify-between items-center mb-2">
+        <div>
+            <h3 style="margin: 0;">Autonomous Adaptive Execution Trace</h3>
+            <p class="secondary-text" style="margin: 2px 0 0 0;">Inspect how AdaptiveRAG diagnosed retrieval quality and decided whether to optimize configuration.</p>
+        </div>
+        <div>
+            {% if adaptive_outcome == 'BASELINE_ACCEPTED' %}
+            <span class="badge badge-success">Quality Met Baseline Thresholds</span>
+            {% elif adaptive_outcome == 'ADAPTATION_ACCEPTED' %}
+            <span class="badge badge-success">Candidate Experiment Accepted</span>
+            {% elif adaptive_outcome == 'ADAPTATION_REJECTED' %}
+            <span class="badge badge-danger">Candidate Experiment Rejected</span>
+            {% elif adaptive_outcome == 'ADAPTATION_INCONCLUSIVE' %}
+            <span class="badge badge-warning">No Actionable Candidate</span>
+            {% elif adaptive_outcome == 'EMPTY_KNOWLEDGE_BASE' %}
+            <span class="badge badge-neutral">Empty Knowledge Base</span>
+            {% elif adaptive_outcome == 'PROVIDER_FAILURE' %}
+            <span class="badge badge-danger">Provider Failed</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div style="margin-top: 16px;">
+        <!-- Baseline Evaluation & Configuration -->
+        <div class="grid-2 gap-2 mb-3">
+            {% if baseline_eval %}
+            <div class="panel" style="margin-bottom: 0; background: rgba(0,0,0,0.2);">
+                <div class="form-label">Baseline Quality Evaluation</div>
+                <table class="table" style="font-size: 13px; margin-top: 8px;">
+                    <tr><td>Overall Triad Score</td><td><strong>{{ "%.2f"|format(baseline_eval.overall_score) }}</strong></td></tr>
+                    <tr><td>Faithfulness</td><td>{{ "%.2f"|format(baseline_eval.faithfulness_score) }}</td></tr>
+                    <tr><td>Context Relevance</td><td>{{ "%.2f"|format(baseline_eval.context_score) }}</td></tr>
+                    <tr><td>Answer Relevance</td><td>{{ "%.2f"|format(baseline_eval.relevance_score) }}</td></tr>
+                    <tr><td>Evaluation Explanation</td><td style="font-size: 11px;">{{ baseline_eval.explanation }}</td></tr>
+                </table>
+            </div>
+            {% endif %}
+
+            <div class="panel" style="margin-bottom: 0; background: rgba(0,0,0,0.2);">
+                <div class="form-label">Active Retrieval Configuration</div>
+                <table class="table" style="font-size: 13px; margin-top: 8px;">
+                    <tr><td>Top-K Chunks</td><td><strong>{{ final_config.top_k }}</strong></td></tr>
+                    <tr><td>Dense Similarity Weight</td><td>{{ "%.2f"|format(final_config.dense_weight) if final_config.dense_weight else "N/A" }}</td></tr>
+                    <tr><td>BM25 Lexical Weight</td><td>{{ "%.2f"|format(final_config.bm25_weight) if final_config.bm25_weight else "N/A" }}</td></tr>
+                    <tr><td>Reranker Enabled</td><td>{{ "Yes" if final_config.enable_reranker else "No" }}</td></tr>
+                    <tr><td>Query Latency</td><td>{{ "%.2f"|format(final_result.total_latency) }}s</td></tr>
+                </table>
+            </div>
+        </div>
+
+        {% if not loop_history %}
+            {% if adaptive_outcome == 'BASELINE_ACCEPTED' %}
+            <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); padding: 12px 16px; border-radius: 6px; margin-top: 14px; color: #86efac; font-size: 13px;">
+                <strong>Baseline Quality Verified:</strong> Retrieval and generation quality satisfied quality triad thresholds. No experimental parameter adaptation was required.
+            </div>
+            {% elif adaptive_outcome in ['EMPTY_KNOWLEDGE_BASE', 'NO_RELEVANT_CHUNKS', 'PROVIDER_FAILURE'] %}
+            <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); padding: 12px 16px; border-radius: 6px; margin-top: 14px; color: #fcd34d; font-size: 13px;">
+                <strong>No Intervention Triggered:</strong> Adaptive optimization was not initiated because query execution halted in status: <code>{{ answer_status }}</code>.
+            </div>
+            {% endif %}
+        {% endif %}
+
+        <!-- Loop Steps if adaptation occurred -->
+        {% if loop_history %}
+        <div style="margin-top: 20px;">
+            <h4 style="margin-bottom: 12px; color: var(--primary-color);">Intervention Cycles</h4>
+            {% for loop_item in loop_history %}
+            <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                <div class="flex justify-between items-center mb-2">
+                    <strong style="color: var(--action-color);">Attempt {{ loop_item.attempt }}</strong>
+                    {% if loop_item.experiment %}
+                        {% if loop_item.experiment.decision == 'ACCEPT' %}
+                        <span class="badge badge-success">Candidate Accepted</span>
+                        {% else %}
+                        <span class="badge badge-danger">Candidate Rejected (Rolled Back)</span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge badge-neutral">No Experiment Executed</span>
+                    {% endif %}
+                </div>
+
+                <div class="grid-2 gap-2 mt-2" style="font-size: 13px;">
+                    <div>
+                        <div class="secondary-text">Diagnosed Failure:</div>
+                        <div style="font-weight: 500; color: var(--danger);">{{ loop_item.diagnosis.failure_type }}</div>
+                        <div class="secondary-text mt-1" style="font-size: 11px;">{{ loop_item.diagnosis.evidence }}</div>
+                    </div>
+                    <div>
+                        <div class="secondary-text">Proposed Hypothesis:</div>
+                        <div style="font-weight: 500; color: var(--action-color);">{{ loop_item.hypothesis.action }}</div>
+                        <div class="secondary-text mt-1" style="font-size: 11px;">{{ loop_item.hypothesis.reason }}</div>
+                    </div>
+                </div>
+
+                {% if loop_item.experiment %}
+                <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
+                    <div class="flex justify-between">
+                        <span>Baseline Score: <strong>{{ "%.2f"|format(loop_item.experiment.baseline_score) }}</strong></span>
+                        <span>Candidate Score: <strong>{{ "%.2f"|format(loop_item.experiment.candidate_score) }}</strong></span>
+                        <span>Delta: <strong>{{ "%+.2f"|format(loop_item.experiment.score_delta) }}</strong></span>
+                        <span>Decision: <strong>{{ loop_item.experiment.decision }}</strong></span>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Chunk Inspection Modal -->
+<div id="chunkInspectModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box" style="max-width: 650px;">
+        <div class="flex justify-between items-center mb-2">
+            <h3 style="margin: 0;">Source Chunk Inspection</h3>
+            <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="closeChunkModal()">&times;</button>
+        </div>
+        <div id="chunkInspectBody" style="font-size: 13px;">
+            <p class="secondary-text">Loading verified chunk metadata...</p>
+        </div>
+        <div style="text-align: right; margin-top: 16px;">
+            <button type="button" class="btn btn-secondary" onclick="closeChunkModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal-backdrop {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-box {
+    background: #111827;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+</style>
+
+<!-- Feedback Modal -->
+<div id="feedbackModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box" style="max-width: 480px;">
+        <div class="flex justify-between items-center mb-2">
+            <h3 style="margin: 0;" id="feedbackModalTitle">Answer Feedback</h3>
+            <button type="button" class="btn btn-secondary" style="padding: 2px 8px; font-size: 12px;" onclick="closeFeedbackModal()">&times;</button>
+        </div>
+        <form id="feedbackForm" onsubmit="submitFeedback(event)">
+            <input type="hidden" id="fbQueryId" name="query_id">
+            <input type="hidden" id="fbRating" name="rating">
+
+            <div id="fbReasonGroup" class="form-group mb-2" style="display: none;">
+                <label class="form-label">Reason (Optional)</label>
+                <select id="fbReason" class="form-control">
+                    <option value="">Select a reason...</option>
+                    <option value="incorrect_answer">Incorrect Answer</option>
+                    <option value="insufficient_evidence">Insufficient Evidence</option>
+                    <option value="irrelevant_response">Irrelevant Response</option>
+                    <option value="citation_problem">Citation / Evidence Issue</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group mb-2">
+                <label class="form-label">Comment (Optional, max 500 chars)</label>
+                <textarea id="fbComment" class="form-control" placeholder="Add any details to explain your rating..." maxlength="500" style="min-height: 70px;"></textarea>
+            </div>
+
+            <div id="fbStatusMsg" style="font-size: 12px; margin-top: 6px; display: none;"></div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px;">
+                <button type="button" class="btn btn-secondary" onclick="closeFeedbackModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary" id="fbSubmitBtn">Submit Feedback</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.getElementById('toggleAdvanced').addEventListener('click', function(e) {
+        e.preventDefault();
+        var adv = document.getElementById('advancedSettings');
+        adv.style.display = (adv.style.display === 'none') ? 'block' : 'none';
+    });
+
+    document.getElementById('queryForm').addEventListener('submit', function() {
+        document.getElementById('runQueryBtn').disabled = true;
+        document.getElementById('runQueryBtn').textContent = 'Querying...';
+        document.getElementById('loadingState').style.display = 'block';
+    });
+
+    function inspectChunk(chunkId) {
+        var modal = document.getElementById('chunkInspectModal');
+        var body = document.getElementById('chunkInspectBody');
+        body.innerHTML = '<p class="secondary-text">Loading verified chunk metadata...</p>';
+        modal.style.display = 'flex';
+
+        fetch('/chunks/' + chunkId)
+            .then(function(res) {
+                if (!res.ok) throw new Error("Could not load chunk details");
+                return res.json();
+            })
+            .then(function(data) {
+                var pageStr = data.page_number ? ' &bull; Page ' + data.page_number : '';
+                body.innerHTML = `
+                    <div style="background: rgba(255,255,255,0.05); padding: 10px 14px; border-radius: 6px; margin-bottom: 14px;">
+                        <div><strong>Document:</strong> ${data.filename} (${data.doc_type}${pageStr})</div>
+                        <div class="secondary-text" style="font-size: 11px; margin-top: 4px;">Chunk Index: ${data.chunk_index} &bull; Chunk ID: ${data.chunk_id}</div>
+                    </div>
+                    <div class="form-label">Full Chunk Text:</div>
+                    <div style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); padding: 14px; border-radius: 6px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; font-family: inherit; line-height: 1.6;">${data.text}</div>
+                `;
+            })
+            .catch(function(err) {
+                body.innerHTML = '<div style="color: var(--danger);">' + err.message + '</div>';
+            });
+    }
+
+    function closeChunkModal() {
+        document.getElementById('chunkInspectModal').style.display = 'none';
+    }
+
+    function openFeedbackModal(queryId, rating) {
+        document.getElementById('fbQueryId').value = queryId;
+        document.getElementById('fbRating').value = rating;
+        document.getElementById('feedbackModalTitle').textContent = (rating === 'helpful') ? 'Give Feedback: Helpful' : 'Give Feedback: Not Helpful';
+        var reasonGroup = document.getElementById('fbReasonGroup');
+        reasonGroup.style.display = (rating === 'not_helpful') ? 'block' : 'none';
+        document.getElementById('fbReason').value = '';
+        document.getElementById('fbComment').value = '';
+        document.getElementById('fbStatusMsg').style.display = 'none';
+        document.getElementById('feedbackModal').style.display = 'flex';
+    }
+
+    function closeFeedbackModal() {
+        document.getElementById('feedbackModal').style.display = 'none';
+    }
+
+    function submitFeedback(e) {
+        e.preventDefault();
+        var queryId = document.getElementById('fbQueryId').value;
+        var rating = document.getElementById('fbRating').value;
+        var reason = document.getElementById('fbReason').value;
+        var comment = document.getElementById('fbComment').value;
+        var submitBtn = document.getElementById('fbSubmitBtn');
+        submitBtn.disabled = true;
+
+        var formData = new FormData();
+        formData.append('rating', rating);
+        if (reason) formData.append('reason', reason);
+        if (comment) formData.append('comment', comment);
+
+        fetch('/query/' + queryId + '/feedback', {
+            method: 'POST',
+            body: formData
+        })
+        .then(function(res) {
+            if (!res.ok) return res.json().then(function(j) { throw new Error(j.detail || 'Failed to submit feedback'); });
+            return res.json();
+        })
+        .then(function(data) {
+            closeFeedbackModal();
+            submitBtn.disabled = false;
+            var display = document.getElementById('feedback-display-' + queryId);
+            if (display) {
+                var color = (rating === 'helpful') ? 'var(--success)' : 'var(--warning)';
+                var text = 'Feedback recorded: ' + (rating === 'helpful' ? 'Helpful' : 'Not helpful');
+                if (reason) {
+                    text += ' (' + reason.replace('_', ' ') + ')';
+                }
+                display.innerHTML = '<span style="font-size: 12px; color: ' + color + '; font-weight: 500;">' + text + '</span>';
+            }
+        })
+        .catch(function(err) {
+            submitBtn.disabled = false;
+            var statusMsg = document.getElementById('fbStatusMsg');
+            statusMsg.style.display = 'block';
+            statusMsg.style.color = 'var(--danger)';
+            statusMsg.textContent = err.message;
+        });
+    }
+</script>
+{% endblock %}

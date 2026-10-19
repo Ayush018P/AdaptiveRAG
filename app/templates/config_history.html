@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Configuration History{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h1>Configuration History</h1>
+    <p class="page-description">Track changes and rollback active retrieval configurations.</p>
+</div>
+
+{% if message %}
+<div style="padding: 16px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16,185,129,0.3); color: #10b981; border-radius: 8px; margin-bottom: 24px; font-weight: 600;">
+    {{ message }}
+</div>
+{% endif %}
+
+{% if not configs %}
+<div class="empty-state">
+    <p>No configuration history found.</p>
+</div>
+{% else %}
+<div class="table-container">
+    <table class="table">
+        <tr>
+            <th>Version</th>
+            <th>Top-K</th>
+            <th>Dense Weight</th>
+            <th>BM25 Weight</th>
+            <th>Reranking</th>
+            <th>Query Rewrite</th>
+            <th>Status</th>
+            <th>Source Experiment</th>
+            <th>Created At</th>
+            <th>Action</th>
+        </tr>
+        {% for c in configs %}
+        <tr style="{% if c.status == 'ACTIVE' %}background-color: rgba(16, 185, 129, 0.05); border-left: 3px solid var(--success);{% endif %}">
+            <td style="font-weight: 700;">v{{ c.version_id }}</td>
+            <td>{{ c.top_k }}</td>
+            <td>{{ c.dense_weight }}</td>
+            <td>{{ c.bm25_weight }}</td>
+            <td>
+                {% if c.reranking_enabled %}
+                    <span class="badge badge-primary">ON</span>
+                {% else %}
+                    <span class="badge badge-neutral">OFF</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if c.query_rewrite_enabled %}
+                    <span class="badge badge-primary">ON</span>
+                {% else %}
+                    <span class="badge badge-neutral">OFF</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if c.status == 'ACTIVE' %}
+                    <span class="badge badge-success">ACTIVE</span>
+                {% elif c.status == 'EXPERIMENTAL' %}
+                    <span class="badge badge-warning">EXPERIMENTAL</span>
+                {% else %}
+                    <span class="badge badge-neutral">SUPERSEDED</span>
+                {% endif %}
+            </td>
+            <td style="color: var(--secondary-text);">{{ c.source_experiment }}</td>
+            <td style="color: var(--secondary-text); font-size: 12px;">{{ c.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            <td>
+                {% if c.status != 'ACTIVE' %}
+                <form action="/config/rollback" method="POST" style="margin: 0;">
+                    <input type="hidden" name="version_id" value="{{ c.version_id }}">
+                    <button type="submit" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;">Rollback</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+{% endblock %}

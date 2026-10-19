@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Experiment Result{% endblock %}
+
+{% block content %}
+<div class="header-section" style="display: flex; justify-content: space-between; align-items: flex-start;">
+    <div>
+        <h1>Experiment Result</h1>
+        <p class="page-description">Detailed comparison between baseline and candidate configurations.</p>
+    </div>
+    <a href="/experiment/builder" class="btn btn-secondary">Back to Builder</a>
+</div>
+
+<div class="panel" style="padding: 24px;">
+    <h2 style="color: var(--action-hover); font-size: 18px; margin-bottom: 24px; font-weight: 600;">Query: <span style="color: var(--white);">"{{ result.query }}"</span></h2>
+    
+    <div class="table-container">
+        <table class="table">
+            <tr>
+                <th style="width: 20%;">Metric</th>
+                <th style="width: 40%; color: var(--secondary-text);">BASELINE</th>
+                <th style="width: 40%; color: var(--action-color);">CANDIDATE</th>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Configuration</td>
+                <td style="font-family: monospace; font-size: 12px;"><pre style="margin: 0;">{{ result.baseline.retrieval_config | tojson(indent=2) }}</pre></td>
+                <td style="font-family: monospace; font-size: 12px; color: var(--action-color);"><pre style="margin: 0;">{{ result.candidate.retrieval_config | tojson(indent=2) }}</pre></td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Rewritten Query</td>
+                <td style="color: var(--secondary-text);">{{ result.baseline.rewritten_query or "None" }}</td>
+                <td style="color: var(--white);">{{ result.candidate.rewritten_query or "None" }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Retrieved chunks</td>
+                <td>{{ result.baseline.retrieved_chunks | length }}</td>
+                <td>{{ result.candidate.retrieved_chunks | length }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Faithfulness</td>
+                <td>{{ "%.4f"|format(result.baseline_eval.faithfulness_score) }}</td>
+                <td>{{ "%.4f"|format(result.candidate_eval.faithfulness_score) }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Context relevance</td>
+                <td>{{ "%.4f"|format(result.baseline_eval.context_score) }}</td>
+                <td>{{ "%.4f"|format(result.candidate_eval.context_score) }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Answer relevance</td>
+                <td>{{ "%.4f"|format(result.baseline_eval.relevance_score) }}</td>
+                <td>{{ "%.4f"|format(result.candidate_eval.relevance_score) }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Completeness</td>
+                <td>{{ "%.4f"|format(result.baseline_eval.completeness_score) }}</td>
+                <td>{{ "%.4f"|format(result.candidate_eval.completeness_score) }}</td>
+            </tr>
+            <tr style="background-color: rgba(255,255,255,0.03);">
+                <td style="font-weight: 700; color: var(--white);">Overall Quality</td>
+                <td style="font-weight: 700;">{{ "%.4f"|format(result.baseline_eval.overall_score) }}</td>
+                <td style="font-weight: 700; color: var(--action-hover);">{{ "%.4f"|format(result.candidate_eval.overall_score) }}</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Retrieval Latency</td>
+                <td>{{ "%.4f"|format(result.baseline.retrieval_latency) }} s</td>
+                <td>{{ "%.4f"|format(result.candidate.retrieval_latency) }} s</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Generation Latency</td>
+                <td>{{ "%.4f"|format(result.baseline.generation_latency) }} s</td>
+                <td>{{ "%.4f"|format(result.candidate.generation_latency) }} s</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">Total Latency</td>
+                <td>{{ "%.4f"|format(result.baseline.total_latency) }} s</td>
+                <td>{{ "%.4f"|format(result.candidate.total_latency) }} s</td>
+            </tr>
+            <tr>
+                <td style="font-weight: 600;">LLM Calls</td>
+                <td>{{ result.baseline.llm_calls }}</td>
+                <td>{{ result.candidate.llm_calls }}</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div style="margin-top: 32px; padding: 24px; border-radius: 8px; border: 1px solid {% if result.decision == 'ACCEPTED' %}rgba(16,185,129,0.3){% else %}rgba(239,68,68,0.3){% endif %}; background: {% if result.decision == 'ACCEPTED' %}rgba(16,185,129,0.05){% else %}rgba(239,68,68,0.05){% endif %};">
+        <h3 style="margin-bottom: 8px; display: flex; align-items: center; gap: 12px;">
+            Decision: 
+            {% if result.decision == 'ACCEPTED' %}
+                <span class="badge badge-success" style="font-size: 14px; padding: 6px 12px;">ACCEPTED</span>
+            {% else %}
+                <span class="badge badge-danger" style="font-size: 14px; padding: 6px 12px;">REJECTED</span>
+            {% endif %}
+        </h3>
+        <p style="margin: 0; color: var(--secondary-text); font-size: 14px;"><strong style="color: var(--white);">Reason:</strong> {{ result.reason }}</p>
+    </div>
+</div>
+{% endblock %}

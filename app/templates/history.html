@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Query History{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h1>Query History</h1>
+    <p class="page-description">A complete log of all queries asked to the AdaptiveRAG engine.</p>
+</div>
+
+<div class="panel">
+    {% if queries %}
+    <div class="table-container">
+        <table class="table" style="font-size: 13px;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Query</th>
+                    <th>Mode</th>
+                    <th>Final Answer</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for query in queries %}
+                <tr style="cursor: pointer;" onclick="document.getElementById('query_{{ query.id }}').style.display = document.getElementById('query_{{ query.id }}').style.display === 'none' ? 'table-row' : 'none';">
+                    <td>{{ query.id }}</td>
+                    <td style="max-width: 280px;">
+                        <span style="display: block; font-weight: 500;">{{ query.query }}</span>
+                        {% if query.conversation %}
+                        <a href="/conversations/{{ query.conversation_id }}" class="secondary-text" style="font-size: 11px; text-decoration: none;" onclick="event.stopPropagation();">
+                            &rdsh; Conversation: <strong>{{ query.conversation.title }}</strong>
+                        </a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge {% if query.mode == 'adaptive' %}badge-primary{% else %}badge-neutral{% endif %}" style="font-size: 11px;">
+                            {{ (query.mode or 'standard')|title }}
+                        </span>
+                        {% if query.feedback %}
+                        <span class="badge {% if query.feedback[0].rating == 'helpful' %}badge-success{% else %}badge-warning{% endif %}" style="font-size: 10px; margin-top: 3px; display: inline-block;">
+                            {{ '👍' if query.feedback[0].rating == 'helpful' else '👎' }}
+                        </span>
+                        {% endif %}
+                    </td>
+                    <td style="max-width: 380px;"><span class="truncate-text" title="{{ query.answer }}">{{ query.answer }}</span></td>
+                    <td class="secondary-text">{{ query.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                <tr id="query_{{ query.id }}" style="display: none; background: rgba(0,0,0,0.2);">
+                    <td colspan="5" style="padding: 16px;">
+                        <div class="grid-2 gap-2">
+                            <div>
+                                <h4 style="margin-top: 0; color: var(--action-hover);">Evaluation Metrics</h4>
+                                {% if query.evaluation %}
+                                <ul style="font-family: monospace; font-size: 13px; margin: 0; padding-left: 20px; line-height: 1.6;">
+                                    <li>Overall Score: <strong style="color: {% if query.evaluation.overall_score >= 0.7 %}var(--success){% elif query.evaluation.overall_score >= 0.4 %}var(--warning){% else %}var(--danger){% endif %};">{{ "%.3f"|format(query.evaluation.overall_score) }}</strong></li>
+                                    <li>Context Score: {{ "%.3f"|format(query.evaluation.context_score) }}</li>
+                                    <li>Faithfulness: {{ "%.3f"|format(query.evaluation.faithfulness_score) }}</li>
+                                    <li>Answer Relevance: {{ "%.3f"|format(query.evaluation.relevance_score) }}</li>
+                                </ul>
+                                {% else %}
+                                <p style="font-size: 12px; color: var(--secondary-text);">No evaluation recorded.</p>
+                                {% endif %}
+                                
+                                <h4 style="margin-top: 16px; color: var(--action-hover);">System Info</h4>
+                                <ul style="font-family: monospace; font-size: 13px; margin: 0; padding-left: 20px;">
+                                    <li>Latency: {{ "%.2f"|format(query.latency) }} seconds</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 style="margin-top: 0; color: var(--action-hover);">Final Retrieval Config</h4>
+                                <div style="font-family: monospace; font-size: 13px; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--white);">
+                                    {{ query.retrieval_config }}
+                                </div>
+                                {% if query.diagnosis %}
+                                <h4 style="margin-top: 16px; color: var(--action-hover);">Initial Diagnosis</h4>
+                                <div style="font-size: 13px; background: rgba(0,0,0,0.3); padding: 8px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; color: var(--white);">
+                                    <strong>{{ query.diagnosis.failure_type }}</strong><br>
+                                    <span style="color: var(--secondary-text);">{{ query.diagnosis.explanation }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <h4 style="margin-top: 0; color: var(--action-hover);">Full Answer</h4>
+                            <div style="font-size: 14px; background: rgba(0,0,0,0.3); padding: 12px; border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; line-height: 1.5; color: var(--white);">
+                                {{ query.answer }}
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No queries have been executed yet.</p>
+        <a href="/query" class="btn btn-primary mt-1">Ask a Question</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

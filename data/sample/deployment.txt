@@ -1,0 +1,5 @@
+To deploy the application, run 'docker-compose up -d'.
+
+Ensure that the environment variables in .env are correctly set. The database uses PostgreSQL on port 5432. Redis is required on port 6379 for caching.
+
+For production, we recommend Kubernetes via the provided Helm charts. Node pools should be configured with auto-scaling to handle peak load. Secrets must be injected using a secure vault rather than environment variables.

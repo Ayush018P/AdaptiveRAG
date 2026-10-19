@@ -1,0 +1,5 @@
+Our REST API endpoints return JSON data. The base URL is https://api.example.com.
+
+For rate limiting, the limit is 100 requests per minute per user. HTTP 429 means Too Many Requests. The API adheres to strict RESTful conventions.
+
+Pagination is handled using 'limit' and 'offset' query parameters. Clients should check the 'X-Total-Count' header in the response. Webhooks are available for real-time state synchronization.

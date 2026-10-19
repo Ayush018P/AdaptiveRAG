@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Diagnostics & Policy{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h1>Diagnostics & Policy</h1>
+    <p class="page-description">Review retrieval failures and the optimization actions proposed by AdaptiveRAG.</p>
+</div>
+
+<div class="panel">
+    {% set ns = namespace(has_diagnostics=False) %}
+    {% for q in queries if q.diagnosis %}
+    {% set ns.has_diagnostics = True %}
+    {% endfor %}
+
+    {% if ns.has_diagnostics %}
+    <div class="table-container">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Query</th>
+                    <th>Failure</th>
+                    <th>Confidence</th>
+                    <th>Evidence</th>
+                    <th>Recommended Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for q in queries if q.diagnosis %}
+                <tr>
+                    <td><span class="truncate-text" title="{{ q.query }}">{{ q.query }}</span></td>
+                    <td>
+                        <span class="badge badge-warning" title="{{ q.diagnosis.failure_type }}">{{
+                            q.diagnosis.failure_type | replace('_', ' ') | title }}</span>
+                    </td>
+                    <td>{{ "%.2f"|format(q.diagnosis.confidence) }}</td>
+                    <td class="secondary-text"><span class="truncate-text" style="max-width: 200px;"
+                            title="{{ q.diagnosis.evidence }}">{{ q.diagnosis.evidence }}</span></td>
+                    <td>
+                        {% if q.recommendation %}
+                        <span class="badge badge-primary">{{ q.recommendation.recommended_change | replace('_', ' ') |
+                            title }}</span>
+                        {% else %}
+                        <span class="secondary-text">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <p>No diagnostics data available.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

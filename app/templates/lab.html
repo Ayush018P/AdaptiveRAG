@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block title %}Failure Analysis Lab{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h1>Failure Analysis Lab</h1>
+    <p class="page-description">Deep dive into retrieval failures and system diagnostics.</p>
+</div>
+
+<div class="panel">
+    <h3>Failure Type Distribution</h3>
+    
+    {% if not distribution %}
+    <div class="empty-state">
+        <p>No diagnostic records available.</p>
+    </div>
+    {% else %}
+    <div class="table-container" style="max-width: 600px; margin-bottom: 32px;">
+        <table class="table">
+            <tr>
+                <th>Failure Type</th>
+                <th>Count</th>
+                <th>Action</th>
+            </tr>
+            {% for d in distribution %}
+            <tr>
+                <td><span class="badge badge-neutral">{{ d.type }}</span></td>
+                <td style="font-weight: 700; font-size: 16px;">{{ d.count }}</td>
+                <td><a href="/lab?type={{ d.type }}" class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;">View Details</a></td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+    
+    {% if detail %}
+    <div style="background: rgba(255,255,255,0.02); padding: 24px; border-radius: 8px; border: 1px solid var(--border-color);">
+        <h3 style="color: var(--action-hover);">Details for: {{ detail.type }}</h3>
+        <div class="grid-2 mt-3">
+            <div>
+                <p class="form-label">Number of occurrences</p>
+                <div class="stat-value">{{ detail.occurrences }}</div>
+            </div>
+            <div>
+                <p class="form-label">Experiments performed</p>
+                <div class="stat-value">{{ detail.experiments_performed }}</div>
+            </div>
+            <div>
+                <p class="form-label">Accepted experiments</p>
+                <div class="stat-value" style="color: var(--success);">{{ detail.accepted }}</div>
+            </div>
+            <div>
+                <p class="form-label">Rejected experiments</p>
+                <div class="stat-value" style="color: var(--danger);">{{ detail.rejected }}</div>
+            </div>
+            <div>
+                <p class="form-label">Average baseline score</p>
+                <div class="stat-value" style="font-size: 20px;">{{ "%.4f"|format(detail.avg_base_score) }}</div>
+            </div>
+            <div>
+                <p class="form-label">Average candidate score</p>
+                <div class="stat-value" style="font-size: 20px;">{{ "%.4f"|format(detail.avg_cand_score) }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

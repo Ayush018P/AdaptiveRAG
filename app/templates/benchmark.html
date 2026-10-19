@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Benchmark{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+    <h1>Benchmark</h1>
+    <p class="page-description">Comparison of static RAG and AdaptiveRAG on the evaluation dataset.</p>
+</div>
+
+{% if summary %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-label">Questions Tested</div>
+        <div class="stat-value">{{ summary.total }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Static RAG Score</div>
+        <div class="stat-value" style="color: var(--secondary-text);">{{ "%.3f"|format(summary.static_avg) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Adaptive RAG Score</div>
+        <div class="stat-value" style="color: var(--action-color);">{{ "%.3f"|format(summary.adaptive_avg) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Interventions</div>
+        <div class="stat-value">{{ summary.interventions }}</div>
+    </div>
+</div>
+
+<div class="panel">
+    <h3 class="workflow-title">Mean Semantic Similarity</h3>
+    <div style="margin-top: 16px;">
+        <div style="display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; font-family: monospace;">
+            <div style="width: 80px; margin-right: 8px;">Static</div>
+            <div style="flex-grow: 1; background: #e5e7eb; height: 12px; border-radius: 2px;">
+                <div
+                    style="background: #6B7280; height: 12px; border-radius: 2px; width: {{ (summary.static_avg * 100)|round|int }}%; max-width: 100%;">
+                </div>
+            </div>
+            <div style="margin-left: 8px; width: 50px; text-align: right;">{{ "%.3f"|format(summary.static_avg) }}</div>
+        </div>
+        <div style="display: flex; align-items: center; font-size: 13px; font-family: monospace;">
+            <div style="width: 80px; margin-right: 8px;">Adaptive</div>
+            <div style="flex-grow: 1; background: #e5e7eb; height: 12px; border-radius: 2px;">
+                <div
+                    style="background: #315C8C; height: 12px; border-radius: 2px; width: {{ (summary.adaptive_avg * 100)|round|int }}%; max-width: 100%;">
+                </div>
+            </div>
+            <div style="margin-left: 8px; width: 50px; text-align: right;">{{ "%.3f"|format(summary.adaptive_avg) }}
+            </div>
+        </div>
+    </div>
+    <p style="font-size: 12px; color: var(--secondary-text); margin-top: 12px;">Cosine similarity measures semantic
+        similarity between generated and expected benchmark answers.</p>
+</div>
+
+{% if summary.p_value is not none %}
+<div class="panel">
+    <h3 class="workflow-title">Statistical Test</h3>
+    <table class="table" style="font-size: 13px; max-width: 400px;">
+        <tr>
+            <td>Test Type</td>
+            <td>Paired t-test</td>
+        </tr>
+        <tr>
+            <td>t-statistic</td>
+            <td>{{ "%.4f"|format(summary.t_stat) }}</td>
+        </tr>
+        <tr>
+            <td>p-value</td>
+            <td>{{ "%.4f"|format(summary.p_value) }}</td>
+        </tr>
+    </table>
+    <div
+        style="font-size: 12px; margin-top: 12px; padding: 12px; background: #F7F7F5; border: 1px solid var(--border-color); border-radius: 4px; color: var(--secondary-text);">
+        <strong>Interpretation:</strong>
+        {% if summary.p_value < 0.05 %} The observed difference was statistically significant for this benchmark. {%
+            else %} The observed difference was not statistically significant for this benchmark. {% endif %} </div>
+            <p style="font-size: 12px; color: var(--secondary-text); margin-top: 8px;">AdaptiveRAG produced a higher
+                mean semantic-similarity score in this benchmark. The statistical test should be considered alongside
+                the observed variance and benchmark size.</p>
+    </div>
+    {% endif %}
+
+    <div class="panel">
+        <h3 class="mb-2">Benchmark Results</h3>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;">Q#</th>
+                        <th>Question</th>
+                        <th>Static Score</th>
+                        <th>Adaptive Score</th>
+                        <th>Difference</th>
+                        <th>Interventions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for res in results %}
+                    <tr>
+                        <td class="secondary-text">{{ res.id }}</td>
+                        <td><span class="truncate-text" style="max-width: 300px;" title="{{ res.question }}">{{
+                                res.question }}</span></td>
+                        <td>{{ "%.2f"|format(res.static_indep_score) }}</td>
+                        <td style="font-weight: 500;">
+                            {% if res.adaptive_indep_score > res.static_indep_score %}
+                            <span style="color: var(--success);">{{ "%.2f"|format(res.adaptive_indep_score) }}</span>
+                            {% elif res.adaptive_indep_score < res.static_indep_score %} <span
+                                style="color: var(--danger);">{{ "%.2f"|format(res.adaptive_indep_score) }}</span>
+                                {% else %}
+                                <span>{{ "%.2f"|format(res.adaptive_indep_score) }}</span>
+                                {% endif %}
+                        </td>
+                        <td style="width: 120px;">
+                            {% set diff = res.adaptive_indep_score - res.static_indep_score %}
+                            {% set diff_pct = (diff * 100)|abs %}
+                            {% set bar_width = 50 if diff_pct > 50 else diff_pct %}
+                            <div style="display: flex; align-items: center; font-family: monospace; font-size: 12px;">
+                                <span
+                                    style="width: 40px; text-align: right; margin-right: 6px; color: {% if diff > 0 %}var(--success){% elif diff < 0 %}var(--danger){% else %}inherit{% endif %};">
+                                    {% if diff > 0 %}+{% endif %}{{ "%.2f"|format(diff) }}
+                                </span>
+                                <div style="width: 60px; height: 8px; background: transparent; position: relative;">
+                                    <div
+                                        style="position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: #D9D9D6;">
+                                    </div>
+                                    {% if diff > 0 %}
+                                    <div
+                                        style="position: absolute; left: 50%; top: 1px; bottom: 1px; background: #3F7D58; width: {{ bar_width }}%;">
+                                    </div>
+                                    {% elif diff < 0 %} <div
+                                        style="position: absolute; right: 50%; top: 1px; bottom: 1px; background: #A94442; width: {{ bar_width }}%;">
+                                </div>
+                                {% endif %}
+                            </div>
+        </div>
+        </td>
+        <td>
+            {% if res.adaptive_interventions > 0 %}
+            <span class="badge badge-primary">{{ res.adaptive_interventions }}</span>
+            {% else %}
+            <span class="secondary-text">-</span>
+            {% endif %}
+        </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No benchmark results available.</p>
+</div>
+{% endif %}
+{% endblock %}

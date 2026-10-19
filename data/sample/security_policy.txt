@@ -1,0 +1,5 @@
+All passwords must be at least 12 characters, contain upper, lower, numbers, and symbols.
+
+We audit access logs every 30 days. No hardcoded secrets in the repository. Two-factor authentication (2FA) is mandatory for all administrative accounts.
+
+Any discovered vulnerabilities must be reported through the bug bounty portal. Data at rest is encrypted using AES-256 standard. TLS 1.3 is strictly enforced for all inbound HTTP traffic.

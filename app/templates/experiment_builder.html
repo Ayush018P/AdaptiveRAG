@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Experiment Builder{% endblock %}
+
+{% block content %}
+<div class="header-section">
+    <h1>Research Experiment Builder</h1>
+    <p class="page-description">Design and run closed-loop retrieval experiments to optimize the RAG pipeline.</p>
+</div>
+
+<form action="/experiment/run" method="POST">
+    <div class="panel">
+        <div class="form-group" style="margin-bottom: 24px;">
+            <label class="form-label" style="font-weight: 700; color: var(--white); font-size: 14px;">QUERY TO OPTIMIZE</label>
+            <input type="text" class="form-control" name="query" value="why does k matter" required>
+        </div>
+        
+        <div class="grid-2">
+            <div class="config-panel" style="background: rgba(255,255,255,0.02); padding: 24px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <h3 style="margin-bottom: 20px; font-weight: 700; font-size: 13px; letter-spacing: 1px; color: var(--secondary-text);">BASELINE CONFIGURATION</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Top-K</label>
+                    <input type="number" class="form-control" name="base_top_k" value="5">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Dense Weight</label>
+                    <input type="text" class="form-control" name="base_dense" value="0.65">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">BM25 Weight</label>
+                    <input type="text" class="form-control" name="base_bm25" value="0.35">
+                </div>
+                
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="base_rerank" id="base_rerank">
+                    <label class="form-label" for="base_rerank" style="margin: 0; cursor: pointer;">Enable Neural Reranking</label>
+                </div>
+                
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="base_rewrite" id="base_rewrite">
+                    <label class="form-label" for="base_rewrite" style="margin: 0; cursor: pointer;">Enable Query Rewrite</label>
+                </div>
+            </div>
+            
+            <div class="config-panel" style="background: rgba(59,130,246,0.05); padding: 24px; border-radius: 8px; border: 1px solid rgba(59,130,246,0.3);">
+                <h3 style="margin-bottom: 20px; font-weight: 700; font-size: 13px; letter-spacing: 1px; color: #60a5fa;">CANDIDATE CONFIGURATION</h3>
+                
+                <div class="form-group">
+                    <label class="form-label">Top-K</label>
+                    <input type="number" class="form-control" name="cand_top_k" value="8">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">Dense Weight</label>
+                    <input type="text" class="form-control" name="cand_dense" value="0.60">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">BM25 Weight</label>
+                    <input type="text" class="form-control" name="cand_bm25" value="0.40">
+                </div>
+                
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="cand_rerank" id="cand_rerank" checked>
+                    <label class="form-label" for="cand_rerank" style="margin: 0; cursor: pointer;">Enable Neural Reranking</label>
+                </div>
+                
+                <div class="form-group" style="display: flex; align-items: center; gap: 8px;">
+                    <input type="checkbox" name="cand_rewrite" id="cand_rewrite" checked>
+                    <label class="form-label" for="cand_rewrite" style="margin: 0; cursor: pointer;">Enable Query Rewrite</label>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 32px; text-align: right;">
+            <button type="submit" class="btn btn-primary" style="padding: 12px 32px; font-size: 15px;">RUN EXPERIMENT</button>
+        </div>
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,83 @@
+# ──────────────────────────────────────────
+# Environment variables and secrets
+# ──────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ──────────────────────────────────────────
+# SQLite databases & WAL/SHM sidecars
+# ──────────────────────────────────────────
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.db.bak*
+
+# ──────────────────────────────────────────
+# Runtime / uploaded data
+# ──────────────────────────────────────────
+data/documents/
+data/indices/
+data/index/
+data/cache/
+data/temp/
+data/adaptive_rag.db
+
+# ──────────────────────────────────────────
+# Benchmark & experiment outputs
+# ──────────────────────────────────────────
+results/
+
+# ──────────────────────────────────────────
+# Python bytecode and caches
+# ──────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.mypy_cache/
+
+# ──────────────────────────────────────────
+# Log files
+# ──────────────────────────────────────────
+*.log
+logs/
+
+# ──────────────────────────────────────────
+# Virtual Environments
+# ──────────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ──────────────────────────────────────────
+# IDE and OS metadata
+# ──────────────────────────────────────────
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ──────────────────────────────────────────
+# Scratch / one-off test scripts
+# (not part of the structured test suite)
+# ──────────────────────────────────────────
+scratch_test_gemini.py
+test_groq.py
+test_groq_models.py
+test_startup.py
+
+# ──────────────────────────────────────────
+# Binary / large non-source assets
+# ──────────────────────────────────────────
+*.docx
+*.faiss
+*.index
+models.json
